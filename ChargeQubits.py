@@ -21,15 +21,15 @@ class Charge_Qubits:
     def __init__(self, ham, rho=None, psi=None,visual=False,masterEquation=False):
         self.hbar = 6.58211928e-16 #eV*s
         self.ham = ham
-        self.errorHam = None
+        self.expectedHam = None
         self.psi = psi
         self.rho = rho
         if psi!= None:
             self.rho = ket2dm(psi)
         self.energies = None
         self.U = None
-        self.errorEnergies = None
-        self.errorU = None
+        self.expectedEnergies = None
+        self.expectedU = None
         self.omega1Eff = None
         self.omega2Eff = None
         self.masterEquation = masterEquation
@@ -76,9 +76,20 @@ class Charge_Qubits:
         ham_eig = ham.eigenstates()
         self.energies = ham_eig[0]
         self.U = ham_eig[1]
+        self.expectedU = self.U
         self.omega1Eff = (self.energies[3]+self.energies[2])/self.hbar
         self.omega2Eff = (self.energies[3]-self.energies[2])/self.hbar
         self.typeA = self.checkType()
+    
+    def setExpectedHam(self,ham):
+        self.expectedHam = ham
+        ham_eig = ham.eigenstates()
+        self.expectedEnergies = ham_eig[0]
+        self.expectedU = ham_eig[1]
+        self.U = self.expectedU
+        self.omega1Eff = (self.expectedEnergies[3]+self.expectedEnergies[2])/self.hbar
+        self.omega2Eff = (self.expectedEnergies[3]-self.expectedEnergies[2])/self.hbar
+        self.typeA = self.pertMatrix(0).transform(self.expectedU)[0,2]*self.pertMatrix(0).transform(self.expectedU)[1,3]>=0
     
     def getEnergies(self):
         return self.energies
@@ -148,14 +159,15 @@ class Charge_Qubits:
         return Qobj(pert)
     
     def X1Rot(self,strength,theta):
+        
         waitTime = 2.*pi/self.omega1Eff - (self.totalTime % (2.*pi/self.omega1Eff))
         self.wait(waitTime)
         if self.typeA:
-            a2 = abs(0.25*strength*self.pertMatrix(0).transform(self.U)[0,2])
+            a2 = abs(0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,2])
             time = 0.5*self.hbar*theta/a2
             self.pulse(0,strength,time,self.omega1Eff,pi/2.)
         else:
-            c2 = abs(0.25*strength*self.pertMatrix(1).transform(self.U)[0,2])
+            c2 = abs(0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,2])
             time = 0.5*self.hbar*theta/c2
             self.pulse(1,strength,time,self.omega1Eff,pi/2.)
         self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
@@ -164,11 +176,11 @@ class Charge_Qubits:
         waitTime = 2.*pi/self.omega1Eff - (self.totalTime % (2.*pi/self.omega1Eff))
         self.wait(waitTime)
         if self.typeA:
-            a2 = 0.25*strength*self.pertMatrix(0).transform(self.U)[0,2]
+            a2 = 0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,2]
             time = abs(0.5*self.hbar*theta/a2)
             self.pulse(0,strength,time,self.omega1Eff,0.)
         else:
-            c2 = 0.25*strength*self.pertMatrix(1).transform(self.U)[0,2]
+            c2 = 0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,2]
             time = abs(0.5*self.hbar*theta/c2)
             self.pulse(1,strength,time,self.omega1Eff,0.)
         self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
@@ -177,11 +189,11 @@ class Charge_Qubits:
         waitTime = 2.*pi/self.omega2Eff - (self.totalTime % (2.*pi/self.omega2Eff))
         self.wait(waitTime)
         if self.typeA:
-            c1 = 0.25*strength*self.pertMatrix(1).transform(self.U)[0,1]
+            c1 = 0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/c1)
             self.pulse(1,strength,time,self.omega2Eff,pi/2.)
         else:
-            a1 = 0.25*strength*self.pertMatrix(0).transform(self.U)[0,1]
+            a1 = 0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/a1)
             self.pulse(0,strength,time,self.omega2Eff,pi/2.)
         self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
@@ -190,11 +202,11 @@ class Charge_Qubits:
         waitTime = 2.*pi/self.omega2Eff - (self.totalTime % (2.*pi/self.omega2Eff))
         self.wait(waitTime)
         if self.typeA:
-            c1 = 0.25*strength*self.pertMatrix(1).transform(self.U)[0,1]
+            c1 = 0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/c1)
             self.pulse(1,strength,time,self.omega2Eff,0.)
         else:
-            a1 = 0.25*strength*self.pertMatrix(0).transform(self.U)[0,1]
+            a1 = 0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/a1)
             self.pulse(0,strength,time,self.omega2Eff,0.)
         self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
@@ -204,7 +216,7 @@ class Charge_Qubits:
         self.wait(waitTime)
         myQubits.totalTime =0.
         if self.typeA:
-            c2 = 0.25*strength*self.pertMatrix(1).transform(self.U)[0,2]
+            c2 = 0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,2]
             #c2 = 0.25*self.pertMatrix(1).transform(self.U)[0,2]
             time = abs(0.25*self.hbar*pi/c2)
             self.pulse(1,strength,time,self.omega1Eff,pi/2.)
