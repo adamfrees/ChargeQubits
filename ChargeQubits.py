@@ -115,12 +115,13 @@ class Charge_Qubits:
     
     def perturb(self,pert,time,freq,phase):
         steps = 500
+        opts = Options(nsteps = 10000)
         args = {'w':  freq*self.hbar,'phi': phase}
         if self.masterEquation:
-            result = mesolve([self.ham.transform(self.U),[pert,'sin(w*t+phi)']],self.rho,linspace(0.,time/self.hbar,steps),[],[],args) #time is divided by hbar because of mesolve convention.
+            result = mesolve([self.ham.transform(self.U),[pert,'sin(w*t+phi)']],self.rho,linspace(0.,time/self.hbar,steps),[],[],args,options=opts) #time is divided by hbar because of mesolve convention.
             self.rho = result.states[steps-1]
         else:
-            result = mesolve([self.ham.transform(self.U),[pert,'sin(w*t+phi)']],self.psi,linspace(0.,time/self.hbar,steps),[],[],args) #time is divided by hbar because of mesolve convention.
+            result = mesolve([self.ham.transform(self.U),[pert,'sin(w*t+phi)']],self.psi,linspace(0.,time/self.hbar,steps),[],[],args,options=opts) #time is divided by hbar because of mesolve convention.
             self.psi = result.states[steps-1]
         self.stateList += [result.states]
         self.timeList += [linspace(0.,time,steps)]
@@ -170,7 +171,7 @@ class Charge_Qubits:
             c2 = abs(0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,2])
             time = 0.5*self.hbar*theta/c2
             self.pulse(1,strength,time,self.omega1Eff,pi/2.)
-        self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
     
     def Y1Rot(self,strength,theta):
         waitTime = 2.*pi/self.omega1Eff - (self.totalTime % (2.*pi/self.omega1Eff))
@@ -183,7 +184,7 @@ class Charge_Qubits:
             c2 = 0.25*strength*self.pertMatrix(1).transform(self.expectedU)[0,2]
             time = abs(0.5*self.hbar*theta/c2)
             self.pulse(1,strength,time,self.omega1Eff,0.)
-        self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = self.psi*exp(1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
     
     def X2Rot(self,strength,theta):
         waitTime = 2.*pi/self.omega2Eff - (self.totalTime % (2.*pi/self.omega2Eff))
@@ -196,7 +197,7 @@ class Charge_Qubits:
             a1 = 0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/a1)
             self.pulse(0,strength,time,self.omega2Eff,pi/2.)
-        self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
     
     def Y2Rot(self,strength,theta):
         waitTime = 2.*pi/self.omega2Eff - (self.totalTime % (2.*pi/self.omega2Eff))
@@ -209,7 +210,7 @@ class Charge_Qubits:
             a1 = 0.25*strength*self.pertMatrix(0).transform(self.expectedU)[0,1]
             time = abs(0.5*self.hbar*theta/a1)
             self.pulse(0,strength,time,self.omega2Eff,0.)
-        self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = self.psi*exp(-1.j*theta/2.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
     
     def CNOT2(self,strength):
         waitTime = 2.*pi/self.omega2Eff - (self.totalTime % (2.*pi/self.omega2Eff))
@@ -220,10 +221,10 @@ class Charge_Qubits:
             #c2 = 0.25*self.pertMatrix(1).transform(self.U)[0,2]
             time = abs(0.25*self.hbar*pi/c2)
             self.pulse(1,strength,time,self.omega1Eff,pi/2.)
-        self.psi = self.psi*exp(1.j*pi/4.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = self.psi*exp(1.j*pi/4.) # This is purely bookkeeping, psi obviously doesn't depend on global phase
         self.X1Rot(strength,3.*pi/2.)
         self.Z2Rot(strength,3.*pi*2.)
-        self.psi = -self.psi*1.j # This is purely bookkeeping, psi obviously doesn't depend on global phase
+        if not self.masterEquation: self.psi = -self.psi*1.j # This is purely bookkeeping, psi obviously doesn't depend on global phase
     
     def Z1Rot(self,strength,theta):
         self.Y1Rot(strength,pi/2.)
